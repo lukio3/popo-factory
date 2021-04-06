@@ -21,14 +21,21 @@ class PropertyFactory
         return new self;
     }
 
-    public static function registerProvider(string $name, callable $callback): void
+    public static function registerProvider(string $name, callable $callback, ?string $declaringClass = null): void
     {
-        static::$providers[$name] = $callback;
+        $declaringClass ? static::$providers[$declaringClass][$name] = $callback : static::$providers[$name] = $callback;
     }
 
     public function make(ReflectionProperty $property)
     {
         $type = $this->extractType($property);
+        
+        $declaringClass = $property->getDeclaringClass()->getName();
+
+        // If a provider specific to the property and declaring class was registered to handle this type, pass off to that.
+        if (isset(static::$providers[$declaringClass][$type])) {
+            return static::$providers[$declaringClass][$type](new FakerMap, $property);
+        }
 
         // If a provider was registered to handle this type, pass off to that.
         if (isset(static::$providers[$type])) {
